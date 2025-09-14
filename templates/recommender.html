@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recommender - WeSave</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    body {
+      background-color: #f8f9fc;
+      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+    }
+    /* Sidebar styles (same as dashboard) */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 250px;
+      background: linear-gradient(180deg, #4e73df 0%, #224abe 100%);
+      padding-top: 20px;
+      color: white;
+      z-index: 1000;
+      box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    }
+    .sidebar .logo {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 30px;
+      padding: 0 20px;
+    }
+    .sidebar .logo i {
+      margin-right: 10px;
+    }
+    .sidebar .menu {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar .menu li {
+      margin: 8px 0;
+    }
+    .sidebar .menu li a {
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      display: block;
+      padding: 12px 20px;
+      transition: all 0.3s;
+      border-left: 4px solid transparent;
+    }
+    .sidebar .menu li a:hover,
+    .sidebar .menu li a.active {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+      border-left: 4px solid white;
+    }
+    .sidebar .menu li a i {
+      width: 20px;
+      margin-right: 10px;
+      text-align: center;
+    }
+    /* Main content styles */
+    .content {
+      margin-left: 250px;
+      padding: 20px;
+      min-height: 100vh;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-piggy-bank"></i> <span>WeSave</span>
+    </div>
+    <ul class="menu">
+      <li><a href="/dashboard" class="nav-link"><i class="fas fa-home"></i> Dashboard</a></li>
+      <li><a href="/profile" class="nav-link"><i class="fas fa-user"></i> Profile</a></li>
+      <li><a href="/recommender" class="nav-link active"><i class="fas fa-chart-bar"></i> Recommender</a></li>
+      <li><a href="/analytics" class="nav-link"><i class="fas fa-chart-pie"></i> Analytics</a></li>
+      <li><a href="/logout" class="nav-link"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+  </div>
+
+  <div class="content">
+    <h2>Recommender</h2>
+    <div class="alert alert-info">
+      Recommender feature is coming soon! Check back later.
+    </div>
+    <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analytics - WeSave</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fc;
+      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+    }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 250px;
+      background: linear-gradient(180deg, #4e73df 0%, #224abe 100%);
+      padding-top: 20px;
+      color: white;
+      z-index: 1000;
+      box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    }
+    .sidebar .logo {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 30px;
+      padding: 0 20px;
+    }
+    .sidebar .logo i {
+      margin-right: 10px;
+    }
+    .sidebar .menu {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar .menu li {
+      margin: 8px 0;
+    }
+    .sidebar .menu li a {
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      display: block;
+      padding: 12px 20px;
+      transition: all 0.3s;
+      border-left: 4px solid transparent;
+    }
+    .sidebar .menu li a:hover,
+    .sidebar .menu li a.active {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+      border-left: 4px solid white;
+    }
+    .sidebar .menu li a i {
+      width: 20px;
+      margin-right: 10px;
+      text-align: center;
+    }
+    .content {
+      margin-left: 250px;
+      padding: 20px;
+      min-height: 100vh;
+      background: #fff;
+    }
+    .stats-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .stats-card {
+      flex: 1 1 200px;
+      background: #f8f9fc;
+      padding: 24px 18px;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px 0 rgba(34,74,190,.05);
+      text-align: center;
+      font-weight: 600;
+    }
+    .chart-section {
+      margin-top: 42px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 48px 32px;
+      min-height: 300px;
+    }
+    .chart-container {
+      flex: 1 1 360px;
+      background: #f8f9fc;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(34, 74, 190, 0.06);
+    }
+    @media (max-width: 900px) {
+      .chart-section { flex-direction: column; }
+    }
+    .table-section {
+      margin-top: 32px;
+      background: #f8f9fc;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(34, 74, 190, 0.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-piggy-bank"></i> <span>WeSave</span>
+    </div>
+    <ul class="menu">
+      <li><a href="/dashboard" class="nav-link"><i class="fas fa-home"></i> Dashboard</a></li>
+      <li><a href="/profile" class="nav-link"><i class="fas fa-user"></i> Profile</a></li>
+      <li><a href="/recommender" class="nav-link"><i class="fas fa-chart-bar"></i> Recommender</a></li>
+      <li><a href="/analytics" class="nav-link active"><i class="fas fa-chart-pie"></i> Analytics</a></li>
+      <li><a href="/logout" class="nav-link"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+  </div>
+
+  <div class="content">
+    <h2>Analytics</h2>
+
+    <div class="stats-box">
+      <div class="stats-card">
+        <div style="font-size:2.1rem;color:#4e73df"><i class="fas fa-wallet"></i></div>
+        <div>Total Expenses</div>
+        <div style="font-size:1.35rem;font-weight:700;margin-top:10px;">{{ total_amount }}</div>
+      </div>
+      <div class="stats-card">
+        <div style="font-size:2.1rem;color:#1cc88a"><i class="fas fa-calendar"></i></div>
+        <div>This Month</div>
+        <div style="font-size:1.35rem;font-weight:700;margin-top:10px;">{{ monthly_amount }}</div>
+      </div>
+      <div class="stats-card">
+        <div style="font-size:2.1rem;color:#36b9cc"><i class="fas fa-receipt"></i></div>
+        <div>Number of Expenses</div>
+        <div style="font-size:1.35rem;font-weight:700;margin-top:10px;">{{ expenses_count }}</div>
+      </div>
+      <div class="stats-card">
+        <div style="font-size:2.1rem;color:#f6c23e"><i class="fas fa-medal"></i></div>
+        <div>Top Categories</div>
+        {% for cat, amt in top_categories %}
+          <div style="font-size:1.05rem;font-weight:700;margin:8px 0;">{{ cat }}: {{ amt }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-container">
+        <h4>Category-wise Spending (Bar)</h4>
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h4>Spending Distribution (Pie)</h4>
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-section">
+      <h5>Spending by Category</h5>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Category</th>
+              <th>Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat, amt in category_totals.items() %}
+              <tr>
+                <td>{{ cat }}</td>
+                <td>{{ amt }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <a href="/dashboard" class="btn btn-secondary mt-4">← Back to Dashboard</a>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Prepare data for Chart.js with Flask/Jinja2
+    const categoryTotals = {{ category_totals|tojson }};
+    const categoryLabels = Object.keys(categoryTotals);
+    const categoryData = Object.values(categoryTotals);
+
+    // Bar Chart
+    new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: categoryLabels,
+        datasets: [{
+          label: 'Amount',
+          data: categoryData,
+          backgroundColor: 'rgba(78,115,223,0.7)',
+          borderColor: 'rgba(78,115,223,1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive:true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    // Pie Chart
+    new Chart(document.getElementById('pieChart'), {
+      type: 'pie',
+      data: {
+        labels: categoryLabels,
+        datasets: [{
+          data: categoryData,
+          backgroundColor: [
+            'rgba(78,115,223,0.6)','rgba(28,200,138,0.6)','rgba(61,183,204,0.6)',
+            'rgba(246,194,62,0.6)','rgba(231,74,59,0.6)','rgba(133,135,150,0.6)'
+          ]
+        }]
+      }
+    });
+  </script>
+</body>
+</html>
