@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans
 import hashlib
 
 app = Flask(__name__)
-app.secret_key = 'f149f1b4db0e263541bd1f2b12e1442c488a9260e07ef95134bc0e17b08f735b'
+app.secret_key = 'API_SECRET_KEY'
 
 db_config = {
     'host': 'localhost',
