@@ -1,12 +1,11 @@
-from flask import Flask, request, jsonify, session, render_template, sessions, redirect, url_for, flash, Response
+from flask import Flask, request, jsonify, session, render_template, redirect, flash, Response
 import mysql.connector
 from datetime import datetime
 from functools import wraps
 import csv
 import io
-import numpy as np
-from sklearn.cluster import KMeans
 import hashlib
+from fuzzywuzzy import fuzz  # <-- added for smarter text matching
 
 app = Flask(__name__)
 app.secret_key = 'API_SECRET_KEY'
@@ -24,6 +23,7 @@ def get_db_connection():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+
 # ---------------- AUTH DECORATOR ----------------
 def login_required(f):
     @wraps(f)
@@ -33,11 +33,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
 # ---------------- LANDING ----------------
 @app.route('/')
 def landing():
     session.clear()
     return render_template('landing.html')
+
 
 # ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET', 'POST'])
@@ -90,13 +92,13 @@ def register():
         flash('Registration successful! Please login.', 'success')
         return redirect('/login')
 
+
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
         return render_template('login.html')
 
-    # Handle both JSON and form data
     if request.is_json:
         data = request.get_json()
     else:
@@ -119,7 +121,7 @@ def login():
     cursor.close()
     conn.close()
 
-    if user and user['password'] == password:  # Compare plain text passwords
+    if user and user['password'] == hash_password(password):
         session['user_id'] = user['user_id']
         if request.is_json:
             return jsonify({'message': 'Login successful!'}), 200
@@ -131,6 +133,8 @@ def login():
     else:
         flash('Invalid username or password', 'danger')
         return redirect('/login')
+
+
 # ---------------- PROFILE ----------------
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -170,12 +174,14 @@ def profile():
         flash('Profile updated successfully!', 'success')
         return redirect('/profile')
 
+
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
 @login_required
 def logout():
     session.clear()
     return redirect('/')
+
 
 # ---------------- DASHBOARD ----------------
 @app.route('/dashboard')
@@ -184,7 +190,6 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Get all expenses
     cursor.execute("""
         SELECT id, category, description, amount, payment_method, transaction_time
         FROM expenses
@@ -193,7 +198,6 @@ def dashboard():
     """, (session['user_id'],))
     expenses = cursor.fetchall()
     
-    # Calculate statistics
     total_amount = 0
     monthly_amount = 0
     expenses_count = len(expenses)
@@ -204,20 +208,15 @@ def dashboard():
     
     for expense in expenses:
         total_amount += float(expense['amount'])
-        
-        # Check if expense is from current month
         expense_date = expense['transaction_time']
         if expense_date.month == current_month and expense_date.year == current_year:
             monthly_amount += float(expense['amount'])
-        
-        # Track category totals
         category = expense['category']
         if category in category_totals:
             category_totals[category] += float(expense['amount'])
         else:
             category_totals[category] = float(expense['amount'])
     
-    # Find top category
     top_category = "None"
     if category_totals:
         top_category = max(category_totals, key=category_totals.get)
@@ -226,11 +225,13 @@ def dashboard():
     conn.close()
     
     return render_template('dashboard.html', 
-                         expenses=expenses,
-                         total_amount=total_amount,
-                         monthly_amount=monthly_amount,
-                         expenses_count=expenses_count,
-                         top_category=top_category)
+                           expenses=expenses,
+                           total_amount=total_amount,
+                           monthly_amount=monthly_amount,
+                           expenses_count=expenses_count,
+                           top_category=top_category)
+
+
 # ---------------- EXPENSES ROUTE ----------------
 @app.route('/expenses')
 @login_required
@@ -248,6 +249,7 @@ def expenses():
     conn.close()
     return render_template('expense.html', expenses=expenses)
 
+
 # ---------------- ADD EXPENSE ----------------
 @app.route('/add_expense', methods=['GET', 'POST'])
 @login_required
@@ -255,7 +257,6 @@ def add_expense():
     if request.method == 'GET':
         return render_template('add_expense.html')
 
-    # POST request
     category = request.form.get('category')
     description = request.form.get('description')
     amount = request.form.get('amount')
@@ -274,11 +275,13 @@ def add_expense():
     flash('Expense added successfully!', 'success')
     return redirect('/dashboard')
 
+
 # ---------------- RECOMMENDER ----------------
 @app.route('/recommender')
 @login_required
-def reports():
+def recommender():
     return render_template('recommender.html')
+
 
 # ---------------- ANALYTICS ----------------
 @app.route('/analytics')
@@ -287,7 +290,6 @@ def analytics():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Fetch user's expenses ordered by time descending
     cursor.execute("""
         SELECT category, amount, transaction_time
         FROM expenses
@@ -298,7 +300,6 @@ def analytics():
     cursor.close()
     conn.close()
 
-    # Calculate total and monthly expenses
     total_amount = sum(float(e['amount']) for e in expenses)
     expenses_count = len(expenses)
     now = datetime.now()
@@ -309,17 +310,14 @@ def analytics():
         if e['transaction_time'].month == current_month and e['transaction_time'].year == current_year
     )
 
-    # Aggregate expenses by category
     category_totals = {}
     for e in expenses:
         category = e['category'] or "Other"
         category_totals[category] = category_totals.get(category, 0) + float(e['amount'])
 
-    # Sort categories by total amount descending
     sorted_categories = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
     top_categories = sorted_categories[:3]
 
-    # Pass all data to the template
     return render_template(
         'analytics.html',
         total_amount=total_amount,
@@ -364,6 +362,97 @@ def download_csv():
         "Content-type": "text/csv"
     }
     return Response(generate(), headers=headers)
+
+
+# ---------------- CHATBOT ROUTE ----------------
+
+# Simple memory per user (optional context)
+user_context = {}
+
+def get_bot_response(user_input, user_id):
+    user_input = user_input.lower().strip()
+    response = "I'm not sure I understood that. Could you please rephrase?"
+
+    prev_message = user_context.get(user_id, "")
+
+    # ---- GREETING ----
+    if any(word in user_input for word in ["hello", "hi", "hey", "good morning", "good evening"]):
+        response = "👋 Hello there! How can I help you today? You can ask me about adding, viewing, or analyzing your expenses."
+
+    # ---- ADD EXPENSE ----
+    elif "add" in user_input and "expense" in user_input:
+        response = '💰 To add a new expense, <a href="/add_expense">click here</a>.'
+
+    # ---- VIEW EXPENSES ----
+    elif any(word in user_input for word in ["view", "show", "see"]) and "expense" in user_input:
+        response = '📂 You can view your expenses on your <a href="/dashboard" class="text-blue-600 hover:underline">Dashboard</a>.'
+
+    # ---- ANALYTICS / REPORT ----
+    elif any(word in user_input for word in ["report", "analytics", "chart", "insight", "analysis"]):
+        response = '📊 You can explore detailed insights on your <a href="/analytics" class="text-blue-600 hover:underline">Analytics</a> page.'
+
+    # ---- DOWNLOAD CSV ----
+    elif "download" in user_input and "csv" in user_input:
+        response = '📥 You can download all your expense records from <a href="/download_csv" class="text-blue-600 hover:underline">here</a>.'
+
+    # ---- PROFILE ----
+    elif any(word in user_input for word in ["profile", "account", "settings"]):
+        response = '👤 You can view or update your profile <a href="/profile" class="text-blue-600 hover:underline">here</a>.'
+
+    # ---- HELP ----
+    elif "help" in user_input or "what can you do" in user_input:
+        response = (
+            "🤖 I can help you with these tasks:<br>"
+            "💰 Add or view expenses<br>"
+            "📈 Show analytics and reports<br>"
+            "📥 Download expense CSV<br>"
+            "👤 Manage your profile<br>"
+            "Just tell me what you'd like to do!"
+        )
+
+    # ---- THANKS ----
+    elif any(word in user_input for word in ["thank", "thanks", "thank you"]):
+        response = "You're very welcome! 😊 Anything else you'd like help with?"
+
+    # ---- EXIT ----
+    elif any(word in user_input for word in ["bye", "goodbye", "see you"]):
+        response = "Goodbye! 👋 Remember to track your expenses regularly to stay financially smart!"
+
+    # ---- FUZZY MATCH (fallback) ----
+    else:
+        options = {
+            "add": 'To add a new expense, <a href="/add_expense" class="text-blue-600 hover:underline">click here</a>.',
+            "view": 'View all your expenses on <a href="/dashboard" class="text-blue-600 hover:underline">Dashboard</a>.',
+            "analytics": 'Check analytics at <a href="/analytics" class="text-blue-600 hover:underline">Analytics</a>.',
+            "csv": 'Download your data <a href="/download_csv" class="text-blue-600 hover:underline">here</a>.',
+            "profile": 'Manage your profile <a href="/profile" class="text-blue-600 hover:underline">here</a>.'
+        }
+        best_match = None
+        best_score = 0
+        for key, msg in options.items():
+            score = fuzz.partial_ratio(key, user_input)
+            if score > best_score:
+                best_score = score
+                best_match = msg
+        if best_score > 60:
+            response = best_match
+
+    user_context[user_id] = user_input
+    return response
+
+
+@app.route('/chatbot')
+@login_required
+def chatbot():
+    return render_template('chatbot.html')
+
+
+@app.route('/chatbot/message', methods=['POST'])
+@login_required
+def chatbot_message():
+    user_message = request.json.get('message', '')
+    reply = get_bot_response(user_message, session['user_id'])
+    return jsonify({'response': reply})
 
 # ---------------- RUN APP ----------------
 if __name__ == '__main__':

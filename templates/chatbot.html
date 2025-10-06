@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WeSave Chatbot</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+    }
+
+    /* Chat button - visible when chatbot is closed */
+    #chat-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #2563eb;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      color: white;
+      font-size: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 10000;
+    }
+
+    /* Chat container - hidden by default */
+    #chat-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 400px;
+      height: 600px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 10001;
+      transform: translateY(100%);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* Show chat */
+    #chat-container.open {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .chat-header {
+      background-color: #2563eb;
+      color: white;
+      padding: 15px;
+      font-weight: 600;
+      font-size: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+    }
+
+    .chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: #f9fafb;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-message,
+    .bot-message {
+      max-width: 80%;
+      margin: 8px 0;
+      padding: 10px 14px;
+      border-radius: 14px;
+      word-wrap: break-word;
+      font-size: 0.95rem;
+    }
+
+    .user-message {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+      text-align: right;
+    }
+
+    .bot-message {
+      background-color: #e5e7eb;
+      align-self: flex-start;
+      text-align: left;
+    }
+
+    .bot-message a {
+      color: #2563eb;
+      text-decoration: underline;
+      pointer-events: auto;
+    }
+
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+    }
+
+    .chat-input button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 0 20px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .chat-input button:hover {
+      background-color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Chat button -->
+  <div id="chat-button" title="Open Chat">💬</div>
+
+  <!-- Chat container -->
+  <div id="chat-container">
+    <div class="chat-header">
+      💬 Expense Chatbot
+      <button class="close-btn" title="Close Chat" aria-label="Close Chat">&times;</button>
+    </div>
+
+    <div class="chat-box" id="chat-box"></div>
+
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type your message..." />
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const chatButton = document.getElementById("chat-button");
+    const chatContainer = document.getElementById("chat-container");
+    const closeBtn = document.querySelector(".close-btn");
+    const chatBox = document.getElementById("chat-box");
+    const userInput = document.getElementById("user-input");
+    const sendBtn = document.getElementById("send-btn");
+
+    // Show chat on button click
+    chatButton.addEventListener("click", () => {
+      chatContainer.classList.add("open");
+      chatButton.style.display = "none";
+      userInput.focus();
+    });
+
+    // Hide chat on close button click
+    closeBtn.addEventListener("click", () => {
+      chatContainer.classList.remove("open");
+      chatButton.style.display = "flex";
+    });
+
+    // Send message function
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      addMessage("user", message);
+      userInput.value = "";
+
+      try {
+        const response = await fetch("/chatbot/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+
+        const data = await response.json();
+        addMessage("bot", data.response);
+      } catch (error) {
+        addMessage("bot", "Sorry, something went wrong.");
+      }
+    }
+
+    // Append message to chat box
+    function addMessage(sender, message) {
+      const messageElement = document.createElement("div");
+      messageElement.classList.add(
+        "message",
+        sender === "user" ? "user-message" : "bot-message"
+      );
+
+      if (sender === "bot") {
+        messageElement.innerHTML = message;
+      } else {
+        messageElement.innerText = message;
+      }
+
+      chatBox.appendChild(messageElement);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    userInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+
+</body>
+</html>
